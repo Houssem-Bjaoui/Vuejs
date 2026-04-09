@@ -9,7 +9,7 @@ import Footer from './footer.vue'
 
     <section class="hero-section bg-light py-5">
       <div class="container text-center py-5">
-        <h1 class="display-3 fw-bold mb-3">Welcome to LibraryMS</h1>
+        <h1 class="display-3 fw-bold mb-3">Welcome to Libra</h1>
         <p class="lead text-muted mb-4">Your Digital Library Management System</p>
         <router-link to="/books" class="btn btn-primary btn-lg px-5">Browse Books</router-link>
       </div>

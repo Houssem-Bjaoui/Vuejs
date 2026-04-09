@@ -69,6 +69,7 @@ const handleSignup = async () => {
 }
 </script>
 
+
 <template>
   <div class="signup-container">
     <Header />

@@ -1,6 +1,27 @@
 <script setup>
 import Header from './header.vue'
 import Footer from './footer.vue'
+import { onMounted, ref } from 'vue'
+
+const toastMessage = ref('')
+const showToast = ref(false)
+
+onMounted(() => {
+  const message = localStorage.getItem('toast')
+
+  if (message) {
+    toastMessage.value = message
+    showToast.value = true
+
+    localStorage.removeItem('toast')
+
+    setTimeout(() => {
+      showToast.value = false
+    }, 3000)
+  }
+})
+
+
 </script>
 
 <template>
@@ -95,6 +116,25 @@ import Footer from './footer.vue'
     </section>
 
     <Footer />
+  </div>
+  <div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3">
+    <div
+        v-if="showToast"
+        class="toast show align-items-center text-white bg-success border-0"
+        role="alert"
+    >
+      <div class="d-flex">
+        <div class="toast-body">
+          {{ toastMessage }}
+        </div>
+
+        <button
+            type="button"
+            class="btn-close btn-close-white me-2 m-auto"
+            @click="showToast = false"
+        ></button>
+      </div>
+    </div>
   </div>
 </template>
 

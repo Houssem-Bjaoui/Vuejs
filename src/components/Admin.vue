@@ -1,8 +1,21 @@
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
+import AdminSidebar from './admin/AdminSidebar.vue'
+import AdminTopbar from './admin/AdminTopbar.vue'
+import DashboardSection from './admin/DashboardSection.vue'
+import BooksSection from './admin/BooksSection.vue'
+import AuthorsSection from './admin/AuthorsSection.vue'
+import FavoritesSection from './admin/FavoritesSection.vue'
+import AdminModal from './admin/AdminModal.vue'
+import AdminToast from './admin/AdminToast.vue'
+import { useBooksStore } from '../stores/books'
+import { useAuthorsStore } from '../stores/author'
 
 // ── NAVIGATION ──
 const activeSection = ref('dashboard')
+
+const booksStore = useBooksStore()
+const authorsStore = useAuthorsStore()
 
 // ── STATS ──
 const stats = reactive({
@@ -23,45 +36,82 @@ const favorites = ref([
 ])
 
 // ── BOOKS ──
-const books = ref([
-  { id: 1, title: 'The Great Gatsby', author: 'F. Scott Fitzgerald', genre: 'Classic', isbn: '978-0-7432-7356-5', year: 1925, status: 'Available' },
-  { id: 2, title: 'To Kill a Mockingbird', author: 'Harper Lee', genre: 'Classic', isbn: '978-0-06-112008-4', year: 1960, status: 'Borrowed' },
-  { id: 3, title: '1984', author: 'George Orwell', genre: 'Dystopian', isbn: '978-0-452-28423-4', year: 1949, status: 'Available' },
-  { id: 4, title: 'Pride and Prejudice', author: 'Jane Austen', genre: 'Romance', isbn: '978-0-14-143951-8', year: 1813, status: 'Available' },
-  { id: 5, title: 'The Catcher in the Rye', author: 'J.D. Salinger', genre: 'Coming of Age', isbn: '978-0-316-76948-0', year: 1951, status: 'Maintenance' },
-  { id: 6, title: 'The Hobbit', author: 'J.R.R. Tolkien', genre: 'Fantasy', isbn: '978-0-547-92822-7', year: 1937, status: 'Available' },
-  { id: 7, title: 'Brave New World', author: 'Aldous Huxley', genre: 'Dystopian', isbn: '978-0-06-085052-4', year: 1932, status: 'Available' },
-  { id: 8, title: 'Wuthering Heights', author: 'Emily Brontë', genre: 'Gothic', isbn: '978-0-14-143955-6', year: 1847, status: 'Available' },
-])
+const books = computed(() => booksStore.books)
 
 const bookSearch = ref('')
+
+function authorLabel(author) {
+  if (author === null || author === undefined || author === '') return '—'
+  if (typeof author === 'object') {
+    const { prenom, nom } = author
+    return [prenom, nom].filter(Boolean).join(' ') || '—'
+  }
+  if (Number.isFinite(Number(author))) {
+    const found = normalizedAuthors.value.find(a => Number(a.id) === Number(author))
+    return found?.displayName || `Author #${author}`
+  }
+  return String(author)
+}
+
+const normalizedBooks = computed(() =>
+  books.value.map(book => ({
+    ...book,
+    authorLabel: authorLabel(book.author),
+    category: book.category ?? '—',
+    editor: book.editor ?? '—',
+    image: book.image ?? '',
+    year: book.year ?? '—'
+  }))
+)
+
 const filteredBooks = computed(() => {
-  const q = bookSearch.value.toLowerCase()
-  if (!q) return books.value
-  return books.value.filter(b =>
-      b.title.toLowerCase().includes(q) ||
-      b.author.toLowerCase().includes(q) ||
-      b.genre.toLowerCase().includes(q)
+  const q = bookSearch.value.trim().toLowerCase()
+  if (!q) return normalizedBooks.value
+  return normalizedBooks.value.filter(b =>
+    String(b.title ?? '').toLowerCase().includes(q) ||
+    String(b.authorLabel ?? '').toLowerCase().includes(q) ||
+    String(b.category ?? '').toLowerCase().includes(q) ||
+    String(b.editor ?? '').toLowerCase().includes(q) ||
+    String(b.year ?? '').toLowerCase().includes(q)
   )
 })
 
 // ── AUTHORS ──
-const authors = ref([
-  { id: 1, name: 'F. Scott Fitzgerald', nationality: 'American', born: 1896, died: 1940, books: 4, bio: 'Author of The Great Gatsby and other Jazz Age novels.' },
-  { id: 2, name: 'Harper Lee', nationality: 'American', born: 1926, died: 2016, books: 2, bio: 'Pulitzer Prize-winning author known for To Kill a Mockingbird.' },
-  { id: 3, name: 'George Orwell', nationality: 'British', born: 1903, died: 1950, books: 6, bio: 'English novelist and essayist known for dystopian fiction.' },
-  { id: 4, name: 'Jane Austen', nationality: 'British', born: 1775, died: 1817, books: 6, bio: 'Celebrated for wit and social commentary in Regency England.' },
-  { id: 5, name: 'J.R.R. Tolkien', nationality: 'British', born: 1892, died: 1973, books: 12, bio: 'Father of modern high fantasy literature.' },
-  { id: 6, name: 'Emily Brontë', nationality: 'British', born: 1818, died: 1848, books: 1, bio: 'Author of the gothic masterpiece Wuthering Heights.' },
-])
+const authors = computed(() => authorsStore.authors)
+
+function authorName(author) {
+  if (!author) return '—'
+  if (author.name) return author.name
+  if (author.prenom || author.nom) return [author.prenom, author.nom].filter(Boolean).join(' ')
+  return String(author.id ?? author._id ?? '—')
+}
+
+const normalizedAuthors = computed(() =>
+  authors.value.map(author => ({
+    ...author,
+    id: author.id ?? author._id,
+    displayName: authorName(author),
+    nationality: author.nationality ?? author.nationalite ?? '—',
+    born: author.born ?? author.naissance ?? '—',
+    died: author.died ?? author.deces ?? '',
+    books: author.books ?? author.ouvrages ?? '—',
+    bio: author.bio ?? author.biographie ?? ''
+  }))
+)
+
+const authorOptions = computed(() =>
+  normalizedAuthors.value
+    .filter(a => a.id !== undefined && a.id !== null)
+    .map(a => ({ value: a.id, label: a.displayName }))
+)
 
 const authorSearch = ref('')
 const filteredAuthors = computed(() => {
-  const q = authorSearch.value.toLowerCase()
-  if (!q) return authors.value
-  return authors.value.filter(a =>
-      a.name.toLowerCase().includes(q) ||
-      a.nationality.toLowerCase().includes(q)
+  const q = authorSearch.value.trim().toLowerCase()
+  if (!q) return normalizedAuthors.value
+  return normalizedAuthors.value.filter(a =>
+    String(a.displayName ?? '').toLowerCase().includes(q) ||
+    String(a.nationality ?? '').toLowerCase().includes(q)
   )
 })
 
@@ -72,24 +122,62 @@ const modal = reactive({
   data: {}
 })
 
-const bookForm = reactive({ id: null, title: '', author: '', genre: '', isbn: '', year: '', status: 'Available' })
-const authorForm = reactive({ id: null, name: '', nationality: '', born: '', died: '', books: '', bio: '' })
+const bookForm = reactive({
+  id: null,
+  title: '',
+  author: null,
+  category: 'roman',
+  editor: '',
+  image: '',
+  year: new Date().getFullYear()
+})
+const authorForm = reactive({ id: null, prenom: '', nom: '' })
 
-const genreOptions = ['Classic', 'Dystopian', 'Romance', 'Fantasy', 'Mystery', 'Coming of Age', 'Gothic', 'Psychological', 'Adventure', 'Epic', 'Historical']
-const statusOptions = ['Available', 'Borrowed', 'Maintenance']
+const categoryOptions = ['roman', 'science', 'histoire', 'informatique', 'art', 'philosophie', 'autre']
+
+function mapCategory(value) {
+  const v = String(value || '').trim().toLowerCase()
+  const map = {
+    historical: 'histoire',
+    history: 'histoire',
+    science: 'science',
+    computing: 'informatique',
+    it: 'informatique',
+    art: 'art',
+    philosophy: 'philosophie',
+    novel: 'roman',
+    roman: 'roman',
+    other: 'autre'
+  }
+  return map[v] || v
+}
 
 function openModal(type, item = null) {
   modal.type = type
   modal.open = true
   if (type === 'edit-book' && item) {
-    Object.assign(bookForm, { ...item })
+    Object.assign(bookForm, {
+      id: item.id ?? null,
+      title: item.title ?? '',
+      author: item.author ?? '',
+      category: item.category ?? 'roman',
+      editor: item.editor ?? '',
+      image: item.image ?? '',
+      year: item.year ?? new Date().getFullYear()
+    })
   } else if (type === 'add-book') {
-    Object.assign(bookForm, { id: null, title: '', author: '', genre: 'Classic', isbn: '', year: new Date().getFullYear(), status: 'Available' })
-  } else if (type === 'edit-author' && item) {
-    Object.assign(authorForm, { ...item })
+    Object.assign(bookForm, {
+      id: null,
+      title: '',
+      author: null,
+      category: 'roman',
+      editor: '',
+      image: '',
+      year: new Date().getFullYear()
+    })
   } else if (type === 'add-author') {
-    Object.assign(authorForm, { id: null, name: '', nationality: '', born: '', died: '', books: '', bio: '' })
-  } else if (type === 'delete-book' || type === 'delete-author') {
+    Object.assign(authorForm, { id: null, prenom: '', nom: '' })
+  } else if (type === 'delete-book') {
     modal.data = item
   }
 }
@@ -101,41 +189,63 @@ function closeModal() {
 }
 
 // ── BOOK CRUD ──
-function saveBook() {
-  if (!bookForm.title || !bookForm.author) return
-  if (bookForm.id) {
-    const idx = books.value.findIndex(b => b.id === bookForm.id)
-    if (idx !== -1) books.value[idx] = { ...bookForm }
-  } else {
-    books.value.push({ ...bookForm, id: Date.now() })
-    stats.books++
+async function saveBook() {
+  if (!bookForm.title || !bookForm.author || !bookForm.category || !bookForm.editor || !bookForm.image || !bookForm.year) {
+    showToast('Please fill all required book fields.')
+    return
   }
-  closeModal()
+  if (bookForm.id) {
+    const idx = booksStore.books.findIndex(b => b.id === bookForm.id)
+    if (idx !== -1) booksStore.books[idx] = { ...bookForm }
+    closeModal()
+    return
+  }
+
+  const payload = {
+    title: bookForm.title,
+    year: Number(bookForm.year),
+    editor: bookForm.editor,
+    image: bookForm.image,
+    category: mapCategory(bookForm.category),
+    author: Number(bookForm.author)
+  }
+
+  try {
+    await booksStore.createBook(payload)
+    showToast('Book added successfully.')
+    closeModal()
+  } catch (err) {
+    const msg = booksStore.error || err?.response?.data || err?.message || 'Add book failed.'
+    showToast(String(msg))
+  }
 }
 
 function deleteBook() {
-  books.value = books.value.filter(b => b.id !== modal.data.id)
+  booksStore.books = booksStore.books.filter(b => b.id !== modal.data.id)
   stats.books = Math.max(0, stats.books - 1)
   closeModal()
 }
 
 // ── AUTHOR CRUD ──
-function saveAuthor() {
-  if (!authorForm.name) return
-  if (authorForm.id) {
-    const idx = authors.value.findIndex(a => a.id === authorForm.id)
-    if (idx !== -1) authors.value[idx] = { ...authorForm }
-  } else {
-    authors.value.push({ ...authorForm, id: Date.now() })
-    stats.authors++
+async function saveAuthor() {
+  if (!authorForm.prenom || !authorForm.nom) {
+    showToast('Please provide author first and last name.')
+    return
   }
-  closeModal()
-}
 
-function deleteAuthor() {
-  authors.value = authors.value.filter(a => a.id !== modal.data.id)
-  stats.authors = Math.max(0, stats.authors - 1)
-  closeModal()
+  const payload = {
+    prenom: authorForm.prenom,
+    nom: authorForm.nom
+  }
+
+  try {
+    await authorsStore.createAuthor(payload)
+    showToast('Author added successfully.')
+    closeModal()
+  } catch (err) {
+    const msg = authorsStore.error || err?.response?.data || err?.message || 'Add author failed.'
+    showToast(String(msg))
+  }
 }
 
 // ── TOAST ──
@@ -152,442 +262,154 @@ const navItems = [
   { key: 'authors', icon: '◎', label: 'Authors' },
   { key: 'favorites', icon: '◆', label: 'Favourites' },
 ]
+
+onMounted(async () => {
+  await booksStore.fetchAll()
+  await authorsStore.fetchAll()
+})
+
+watch(
+  () => booksStore.books.length,
+  (len) => { stats.books = len },
+  { immediate: true }
+)
+
+watch(
+  () => authorsStore.authors.length,
+  (len) => { stats.authors = len },
+  { immediate: true }
+)
 </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 <template>
   <div class="admin-root">
+    <AdminSidebar
+      :nav-items="navItems"
+      :active-section="activeSection"
+      @update:active-section="activeSection = $event"
+    />
 
-    <!-- ── SIDEBAR ── -->
-    <aside class="sidebar">
-      <div class="sidebar-brand">
-        <span class="brand-star">✦</span>
-        <span class="brand-text">Libra</span>
-        <span class="brand-sub">Admin</span>
-      </div>
-
-      <nav class="sidebar-nav">
-        <button
-            v-for="item in navItems"
-            :key="item.key"
-            class="nav-item"
-            :class="{ active: activeSection === item.key }"
-            @click="activeSection = item.key"
-        >
-          <span class="nav-icon">{{ item.icon }}</span>
-          <span class="nav-label">{{ item.label }}</span>
-        </button>
-      </nav>
-
-      <div class="sidebar-footer">
-        <a href="/" class="back-link">← Back to Site</a>
-      </div>
-    </aside>
-
-    <!-- ── MAIN ── -->
     <div class="admin-main">
-
-      <!-- TOP BAR -->
-      <header class="topbar">
-        <div class="topbar-left">
-          <p class="topbar-eyebrow">✦ Libra Admin</p>
-          <h1 class="topbar-title">
-            {{ navItems.find(n => n.key === activeSection)?.label }}
-          </h1>
-        </div>
-        <div class="topbar-right">
-          <div class="admin-avatar">A</div>
-          <div class="admin-info">
-            <span class="admin-name">Administrator</span>
-            <span class="admin-role">Super Admin</span>
-          </div>
-        </div>
-      </header>
+      <AdminTopbar
+        :nav-items="navItems"
+        :active-section="activeSection"
+      />
 
       <main class="content-area">
+        <DashboardSection
+          v-if="activeSection === 'dashboard'"
+          :stats="stats"
+          :favorites="favorites"
+          :books="books"
+          @navigate="activeSection = $event"
+        />
 
-        <!-- ══════════════════════════════════════════
-             DASHBOARD
-        ══════════════════════════════════════════ -->
-        <div v-if="activeSection === 'dashboard'" class="section-dashboard">
+        <BooksSection
+          v-if="activeSection === 'books'"
+          :books="books"
+          :filtered-books="filteredBooks"
+          :book-search="bookSearch"
+          @update:book-search="bookSearch = $event"
+          @open-modal="openModal"
+        />
 
-          <!-- STAT CARDS -->
-          <div class="stat-grid">
-            <div class="stat-card">
-              <div class="stat-icon stat-icon--users">👤</div>
-              <div class="stat-body">
-                <p class="stat-label">Total Users</p>
-                <p class="stat-value">{{ stats.users.toLocaleString() }}</p>
-                <p class="stat-delta delta--up">↑ 12% this month</p>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon stat-icon--books">📚</div>
-              <div class="stat-body">
-                <p class="stat-label">Total Books</p>
-                <p class="stat-value">{{ stats.books.toLocaleString() }}</p>
-                <p class="stat-delta delta--up">↑ 3 added recently</p>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon stat-icon--fav">♡</div>
-              <div class="stat-body">
-                <p class="stat-label">Total Favourites</p>
-                <p class="stat-value">{{ stats.favorites.toLocaleString() }}</p>
-                <p class="stat-delta delta--up">↑ 8% this week</p>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon stat-icon--authors">✍</div>
-              <div class="stat-body">
-                <p class="stat-label">Authors</p>
-                <p class="stat-value">{{ stats.authors.toLocaleString() }}</p>
-                <p class="stat-delta delta--neutral">→ Stable</p>
-              </div>
-            </div>
-          </div>
+        <AuthorsSection
+          v-if="activeSection === 'authors'"
+          :filtered-authors="filteredAuthors"
+          :author-search="authorSearch"
+          @update:author-search="authorSearch = $event"
+          @open-modal="openModal"
+        />
 
-          <!-- QUICK TABLE: MOST FAVORITED -->
-          <div class="panel mt-section">
-            <div class="panel-head">
-              <h2 class="panel-title">Most Favourited Books</h2>
-              <button class="panel-action" @click="activeSection = 'favorites'">View all →</button>
-            </div>
-            <table class="data-table">
-              <thead>
-              <tr>
-                <th>#</th>
-                <th>Title</th>
-                <th>Author</th>
-                <th>Genre</th>
-                <th>Favourites</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="(fav, i) in favorites.slice(0, 5)" :key="fav.id">
-                <td class="rank-cell">{{ i + 1 }}</td>
-                <td class="title-cell">{{ fav.title }}</td>
-                <td class="muted-cell">{{ fav.author }}</td>
-                <td><span class="genre-tag">{{ fav.genre }}</span></td>
-                <td>
-                  <div class="fav-bar-wrap">
-                    <div class="fav-bar" :style="{ width: (fav.count / favorites[0].count * 100) + '%' }"></div>
-                    <span class="fav-count">{{ fav.count }}</span>
-                  </div>
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- RECENT BOOKS -->
-          <div class="panel mt-section">
-            <div class="panel-head">
-              <h2 class="panel-title">Recently Added Books</h2>
-              <button class="panel-action" @click="activeSection = 'books'">Manage →</button>
-            </div>
-            <div class="recent-books-grid">
-              <div class="recent-book-card" v-for="book in books.slice(0,4)" :key="book.id">
-                <div class="rbc-cover" :style="{ background: ['#7a6248','#4a6741','#2d4a5c','#7a4a5c'][book.id % 4] }">
-                  <span class="rbc-year">{{ book.year }}</span>
-                </div>
-                <p class="rbc-title">{{ book.title }}</p>
-                <p class="rbc-author">{{ book.author }}</p>
-                <span class="rbc-status" :class="'status--' + book.status.toLowerCase()">{{ book.status }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-
-        <!-- ══════════════════════════════════════════
-             BOOKS CRUD
-        ══════════════════════════════════════════ -->
-        <div v-if="activeSection === 'books'" class="section-crud">
-          <div class="crud-header">
-            <div class="crud-search-wrap">
-              <input class="crud-search" type="text" placeholder="Search books…" v-model="bookSearch" />
-            </div>
-            <button class="btn-add" @click="openModal('add-book')">+ Add Book</button>
-          </div>
-
-          <div class="panel">
-            <table class="data-table">
-              <thead>
-              <tr>
-                <th>#</th>
-                <th>Title</th>
-                <th>Author</th>
-                <th>Genre</th>
-                <th>ISBN</th>
-                <th>Year</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="book in filteredBooks" :key="book.id">
-                <td class="muted-cell">{{ book.id }}</td>
-                <td class="title-cell">{{ book.title }}</td>
-                <td class="muted-cell">{{ book.author }}</td>
-                <td><span class="genre-tag">{{ book.genre }}</span></td>
-                <td class="mono-cell">{{ book.isbn }}</td>
-                <td class="muted-cell">{{ book.year }}</td>
-                <td>
-                  <span class="status-badge" :class="'status--' + book.status.toLowerCase()">{{ book.status }}</span>
-                </td>
-                <td>
-                  <div class="action-btns">
-                    <button class="action-btn action-btn--edit" @click="openModal('edit-book', book)">Edit</button>
-                    <button class="action-btn action-btn--delete" @click="openModal('delete-book', book)">Delete</button>
-                  </div>
-                </td>
-              </tr>
-              <tr v-if="filteredBooks.length === 0">
-                <td colspan="8" class="empty-row">No books found</td>
-              </tr>
-              </tbody>
-            </table>
-            <div class="table-footer">
-              <span class="muted-cell">Showing {{ filteredBooks.length }} of {{ books.length }} books</span>
-            </div>
-          </div>
-        </div>
-
-
-        <!-- ══════════════════════════════════════════
-             AUTHORS CRUD
-        ══════════════════════════════════════════ -->
-        <div v-if="activeSection === 'authors'" class="section-crud">
-          <div class="crud-header">
-            <div class="crud-search-wrap">
-              <input class="crud-search" type="text" placeholder="Search authors…" v-model="authorSearch" />
-            </div>
-            <button class="btn-add" @click="openModal('add-author')">+ Add Author</button>
-          </div>
-
-          <div class="authors-grid">
-            <div class="author-card" v-for="author in filteredAuthors" :key="author.id">
-              <div class="author-avatar">{{ author.name.charAt(0) }}</div>
-              <div class="author-body">
-                <h3 class="author-name">{{ author.name }}</h3>
-                <p class="author-meta">{{ author.nationality }} · {{ author.born }}–{{ author.died || 'present' }}</p>
-                <p class="author-bio">{{ author.bio }}</p>
-                <div class="author-footer">
-                  <span class="author-books">{{ author.books }} works</span>
-                  <div class="action-btns">
-                    <button class="action-btn action-btn--edit" @click="openModal('edit-author', author)">Edit</button>
-                    <button class="action-btn action-btn--delete" @click="openModal('delete-author', author)">Delete</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div v-if="filteredAuthors.length === 0" class="empty-authors">
-              No authors found.
-            </div>
-          </div>
-        </div>
-
-
-        <!-- ══════════════════════════════════════════
-             FAVORITES
-        ══════════════════════════════════════════ -->
-        <div v-if="activeSection === 'favorites'" class="section-crud">
-          <div class="panel">
-            <div class="panel-head">
-              <h2 class="panel-title">All Favourited Books</h2>
-              <span class="muted-cell">{{ favorites.length }} entries</span>
-            </div>
-            <table class="data-table">
-              <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Title</th>
-                <th>Author</th>
-                <th>Genre</th>
-                <th>Favourites</th>
-                <th>Share</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="(fav, i) in favorites" :key="fav.id">
-                <td class="rank-cell">
-                  <span class="rank-badge" :class="i < 3 ? 'rank-top' : ''">{{ i + 1 }}</span>
-                </td>
-                <td class="title-cell">{{ fav.title }}</td>
-                <td class="muted-cell">{{ fav.author }}</td>
-                <td><span class="genre-tag">{{ fav.genre }}</span></td>
-                <td>
-                  <div class="fav-bar-wrap">
-                    <div class="fav-bar" :style="{ width: (fav.count / favorites[0].count * 100) + '%' }"></div>
-                    <span class="fav-count">{{ fav.count }}</span>
-                  </div>
-                </td>
-                <td class="muted-cell">{{ (fav.count / stats.favorites * 100).toFixed(1) }}%</td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
+        <FavoritesSection
+          v-if="activeSection === 'favorites'"
+          :favorites="favorites"
+          :stats="stats"
+        />
       </main>
     </div>
 
+    <AdminModal
+      :modal="modal"
+      :book-form="bookForm"
+      :author-form="authorForm"
+      :category-options="categoryOptions"
+      :author-options="authorOptions"
+      @close="closeModal"
+      @save-book="saveBook"
+      @delete-book="deleteBook"
+      @save-author="saveAuthor"
+    />
 
-    <!-- ══════════════════════════════════════════
-         MODAL OVERLAY
-    ══════════════════════════════════════════ -->
-    <transition name="modal-fade">
-      <div v-if="modal.open" class="modal-overlay" @click.self="closeModal">
-        <div class="modal-box">
-
-          <!-- ADD / EDIT BOOK -->
-          <template v-if="modal.type === 'add-book' || modal.type === 'edit-book'">
-            <div class="modal-head">
-              <h3 class="modal-title">{{ modal.type === 'add-book' ? 'Add New Book' : 'Edit Book' }}</h3>
-              <button class="modal-close" @click="closeModal">×</button>
-            </div>
-            <div class="modal-body">
-              <div class="form-row">
-                <div class="form-field">
-                  <label class="form-label">Title</label>
-                  <input class="form-input" type="text" v-model="bookForm.title" placeholder="Book title" />
-                </div>
-                <div class="form-field">
-                  <label class="form-label">Author</label>
-                  <input class="form-input" type="text" v-model="bookForm.author" placeholder="Author name" />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-field">
-                  <label class="form-label">Genre</label>
-                  <select class="form-input" v-model="bookForm.genre">
-                    <option v-for="g in genreOptions" :key="g" :value="g">{{ g }}</option>
-                  </select>
-                </div>
-                <div class="form-field">
-                  <label class="form-label">ISBN</label>
-                  <input class="form-input" type="text" v-model="bookForm.isbn" placeholder="978-..." />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-field">
-                  <label class="form-label">Year</label>
-                  <input class="form-input" type="number" v-model="bookForm.year" placeholder="e.g. 1984" />
-                </div>
-                <div class="form-field">
-                  <label class="form-label">Status</label>
-                  <select class="form-input" v-model="bookForm.status">
-                    <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div class="modal-foot">
-              <button class="btn-cancel" @click="closeModal">Cancel</button>
-              <button class="btn-save" @click="saveBook">
-                {{ modal.type === 'add-book' ? 'Add Book' : 'Save Changes' }}
-              </button>
-            </div>
-          </template>
-
-          <!-- DELETE BOOK -->
-          <template v-if="modal.type === 'delete-book'">
-            <div class="modal-head">
-              <h3 class="modal-title">Delete Book</h3>
-              <button class="modal-close" @click="closeModal">×</button>
-            </div>
-            <div class="modal-body">
-              <p class="delete-confirm-text">
-                Are you sure you want to permanently delete<br>
-                <strong>{{ modal.data?.title }}</strong>?<br>
-                <span class="delete-warn">This action cannot be undone.</span>
-              </p>
-            </div>
-            <div class="modal-foot">
-              <button class="btn-cancel" @click="closeModal">Cancel</button>
-              <button class="btn-delete" @click="deleteBook">Delete</button>
-            </div>
-          </template>
-
-          <!-- ADD / EDIT AUTHOR -->
-          <template v-if="modal.type === 'add-author' || modal.type === 'edit-author'">
-            <div class="modal-head">
-              <h3 class="modal-title">{{ modal.type === 'add-author' ? 'Add New Author' : 'Edit Author' }}</h3>
-              <button class="modal-close" @click="closeModal">×</button>
-            </div>
-            <div class="modal-body">
-              <div class="form-row">
-                <div class="form-field">
-                  <label class="form-label">Full Name</label>
-                  <input class="form-input" type="text" v-model="authorForm.name" placeholder="Author name" />
-                </div>
-                <div class="form-field">
-                  <label class="form-label">Nationality</label>
-                  <input class="form-input" type="text" v-model="authorForm.nationality" placeholder="e.g. British" />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-field">
-                  <label class="form-label">Born</label>
-                  <input class="form-input" type="number" v-model="authorForm.born" placeholder="e.g. 1775" />
-                </div>
-                <div class="form-field">
-                  <label class="form-label">Died (leave blank if living)</label>
-                  <input class="form-input" type="number" v-model="authorForm.died" placeholder="e.g. 1817" />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-field">
-                  <label class="form-label">Number of Works</label>
-                  <input class="form-input" type="number" v-model="authorForm.books" placeholder="e.g. 6" />
-                </div>
-              </div>
-              <div class="form-field" style="margin-top: 1rem;">
-                <label class="form-label">Biography</label>
-                <textarea class="form-input form-textarea" v-model="authorForm.bio" placeholder="Short biography…" rows="3"></textarea>
-              </div>
-            </div>
-            <div class="modal-foot">
-              <button class="btn-cancel" @click="closeModal">Cancel</button>
-              <button class="btn-save" @click="saveAuthor">
-                {{ modal.type === 'add-author' ? 'Add Author' : 'Save Changes' }}
-              </button>
-            </div>
-          </template>
-
-          <!-- DELETE AUTHOR -->
-          <template v-if="modal.type === 'delete-author'">
-            <div class="modal-head">
-              <h3 class="modal-title">Delete Author</h3>
-              <button class="modal-close" @click="closeModal">×</button>
-            </div>
-            <div class="modal-body">
-              <p class="delete-confirm-text">
-                Are you sure you want to remove<br>
-                <strong>{{ modal.data?.name }}</strong> from the system?<br>
-                <span class="delete-warn">This action cannot be undone.</span>
-              </p>
-            </div>
-            <div class="modal-foot">
-              <button class="btn-cancel" @click="closeModal">Cancel</button>
-              <button class="btn-delete" @click="deleteAuthor">Delete</button>
-            </div>
-          </template>
-
-        </div>
-      </div>
-    </transition>
-
-    <!-- TOAST -->
-    <transition name="toast-fade">
-      <div v-if="toast.show" class="libra-toast">
-        <span style="color:#c9a84c">✦</span> {{ toast.message }}
-      </div>
-    </transition>
+    <AdminToast :toast="toast" />
   </div>
 </template>
 
-<style scoped>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500&display=swap');
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

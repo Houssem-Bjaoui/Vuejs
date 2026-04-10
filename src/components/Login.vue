@@ -22,9 +22,15 @@ const handleLogin = async () => {
       error.value = data.message || 'Login failed'
     } else {
       localStorage.setItem('token', data.access_token)
+      localStorage.setItem('role', data.role)
       localStorage.setItem('toast', 'Welcome back! Login successful ✦')
-      setTimeout(() => { router.push('/') }, 1000)
-    }
+      setTimeout(() => {
+        if (data.role === 'admin') {
+          router.push('/admin')
+        } else {
+          router.push('/')
+        }
+      }, 1000)    }
   } catch (err) {
     error.value = 'Server not reachable'
   } finally {

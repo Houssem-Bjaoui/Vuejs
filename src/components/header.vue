@@ -1,5 +1,5 @@
 <template>
-  <footer class="libra-footer">
+  <header class="libra-footer">
     <div class="footer-inner">
       <div class="footer-brand">
         <span class="brand-mark">✦ Libra</span>
@@ -12,11 +12,8 @@
         <router-link to="/signup">Join</router-link>
       </div>
     </div>
-    <div class="footer-bottom">
-      <span class="divider-line"></span>
-      <p class="footer-copy">© {{ new Date().getFullYear() }} Libra — All rights reserved</p>
-    </div>
-  </footer>
+
+  </header>
 </template>
 
 <style scoped>

@@ -5,17 +5,14 @@ import { onMounted, ref } from 'vue'
 
 const toastMessage = ref('')
 const showToast = ref(false)
+const books = ref([])
 
-const books = [
-  { title: 'The Great Gatsby', author: 'F. Scott Fitzgerald', genre: 'Classic', color: '#7a6248' },
-  { title: 'To Kill a Mockingbird', author: 'Harper Lee', genre: 'Classic', color: '#4a6741' },
-  { title: '1984', author: 'George Orwell', genre: 'Dystopian', color: '#2d4a5c' },
-  { title: 'Pride and Prejudice', author: 'Jane Austen', genre: 'Romance', color: '#7a4a5c' },
-  { title: 'The Catcher in the Rye', author: 'J.D. Salinger', genre: 'Coming of Age', color: '#5c4a2d' },
-  { title: 'The Hobbit', author: 'J.R.R. Tolkien', genre: 'Fantasy', color: '#3d5c3d' },
-]
+onMounted(async () => {
+  const res = await fetch('http://localhost:3000/books/all')
+  const data = await res.json()
+  books.value = (data.listeBooks ?? data).slice(0, 6)
+  console.log(JSON.stringify(books.value[0]))
 
-onMounted(() => {
   const message = localStorage.getItem('toast')
   if (message) {
     toastMessage.value = message
@@ -66,18 +63,20 @@ onMounted(() => {
     <section class="featured-section">
       <div class="container">
         <div class="books-grid">
-          <article
-              class="book-card"
-              v-for="(book, i) in books"
-              :key="i"
-          >
-            <div class="book-cover" :style="{ background: book.color }">
+          <article class="book-card" v-for="(book, i) in books" :key="book.id">
+            <div class="book-cover" :style="{ background: '#1a3a2a' }">
+              <img
+                  v-if="book.image"
+                  :src="book.image"
+                  :alt="book.title"
+                  style="width:100%; height:100%; object-fit:cover; position:absolute; inset:0;"
+              />
               <div class="book-cover-lines"></div>
-              <span class="book-genre-badge">{{ book.genre }}</span>
+              <span class="book-genre-badge">{{ book.category }}</span>
             </div>
             <div class="book-info">
               <h3 class="book-title">{{ book.title }}</h3>
-              <p class="book-author">{{ book.author }}</p>
+              <p class="book-author">{{ book.editor }}</p>
               <router-link to="/books" class="book-link">Read more →</router-link>
             </div>
           </article>

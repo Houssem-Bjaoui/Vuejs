@@ -156,10 +156,13 @@ function openModal(type, item = null) {
   modal.type = type
   modal.open = true
   if (type === 'edit-book' && item) {
+    const authorId = typeof item.author === 'object'
+      ? (item.author?.id ?? item.author?._id ?? null)
+      : item.author
     Object.assign(bookForm, {
       id: item.id ?? null,
       title: item.title ?? '',
-      author: item.author ?? '',
+      author: authorId ?? '',
       category: item.category ?? 'roman',
       editor: item.editor ?? '',
       image: item.image ?? '',
@@ -194,10 +197,25 @@ async function saveBook() {
     showToast('Please fill all required book fields.')
     return
   }
+
   if (bookForm.id) {
-    const idx = booksStore.books.findIndex(b => b.id === bookForm.id)
-    if (idx !== -1) booksStore.books[idx] = { ...bookForm }
-    closeModal()
+    const payload = {
+      title: bookForm.title,
+      year: Number(bookForm.year),
+      editor: bookForm.editor,
+      image: bookForm.image,
+      category: mapCategory(bookForm.category),
+      author: Number(bookForm.author)
+    }
+
+    try {
+      await booksStore.editBook(bookForm.id, payload)
+      showToast('Book updated successfully.')
+      closeModal()
+    } catch (err) {
+      const msg = booksStore.error || err?.response?.data || err?.message || 'Update book failed.'
+      showToast(String(msg))
+    }
     return
   }
 
@@ -220,10 +238,15 @@ async function saveBook() {
   }
 }
 
-function deleteBook() {
-  booksStore.books = booksStore.books.filter(b => b.id !== modal.data.id)
-  stats.books = Math.max(0, stats.books - 1)
-  closeModal()
+async function deleteBook() {
+  try {
+    await booksStore.removeBookById(modal.data.id)
+    showToast('Book deleted successfully.')
+    closeModal()
+  } catch (err) {
+    const msg = booksStore.error || err?.response?.data || err?.message || 'Delete book failed.'
+    showToast(String(msg))
+  }
 }
 
 // ── AUTHOR CRUD ──
@@ -280,22 +303,6 @@ watch(
   { immediate: true }
 )
 </script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 <template>
   <div class="admin-root">
@@ -360,54 +367,6 @@ watch(
     <AdminToast :toast="toast" />
   </div>
 </template>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500&display=swap');

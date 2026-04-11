@@ -4,6 +4,7 @@ import LoginPage from '../components/Login.vue'
 import SignUpPage from '../components/Signup.vue'
 import BooksPage from '../components/Books.vue'
 import AdminPage from '../components/Admin.vue'
+import FavorisPage from '../components/Favoris.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -18,6 +19,13 @@ const router = createRouter({
       name: 'login',
       component: LoginPage
     },
+    {
+      path: '/favoris',
+      name: 'favoris',
+      component: FavorisPage
+    },
+
+
     {
       path: '/signup',
       name: 'signup',

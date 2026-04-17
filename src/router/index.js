@@ -5,6 +5,8 @@ import SignUpPage from '../components/Signup.vue'
 import BooksPage from '../components/Books.vue'
 import AdminPage from '../components/Admin.vue'
 import FavorisPage from '../components/Favoris.vue'
+import NotFound from '../components/NotFound.vue'
+import { useAuthStore } from '../stores/Auth'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -39,9 +41,19 @@ const router = createRouter({
     {
       path: '/admin',
       name: 'admin',
-      component: AdminPage
-    }
+      component: AdminPage,
+      meta: { requiresAdmin: true }
+    },
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFound }
   ]
+})
+
+router.beforeEach((to) => {
+  const auth = useAuthStore()
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: 'not-found' }
+  }
+  return true
 })
 
 export default router

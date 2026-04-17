@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
+import { useAuthStore } from '../stores/Auth'
 
 const router    = useRouter()
 const authStore = useAuthStore()
@@ -13,7 +13,7 @@ const handleLogin = async () => {
   try {
     const data = await authStore.login({ identifiant: identifiant.value, password: password.value })
     setTimeout(() => {
-      router.push(data.role === 'admin' ? '/admin' : '/')
+      router.push(authStore.isAdmin ? '/admin' : '/')
     }, 1000)
   } catch {
     // l'erreur est déjà dans authStore.error

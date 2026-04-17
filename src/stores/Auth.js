@@ -2,10 +2,17 @@
 import { defineStore } from "pinia";
 import { signin, signup } from "../api/Auth";
 
+const normalizeRole = (role) => {
+    if (!role) return null;
+    const value = String(role).trim().toUpperCase();
+    if (!value) return null;
+    return value.startsWith("ROLE_") ? value : `ROLE_${value}`;
+};
+
 export const useAuthStore = defineStore("auth", {
     state: () => ({
         token:    localStorage.getItem("token")    ?? null,
-        role:     localStorage.getItem("role")     ?? null,
+        role:     normalizeRole(localStorage.getItem("role")),
         username: localStorage.getItem("username") ?? null,
         loading:  false,
         error:    null,
@@ -13,7 +20,7 @@ export const useAuthStore = defineStore("auth", {
 
     getters: {
         isAuthenticated: (state) => !!state.token,
-        // Le backend renvoie "ROLE_ADMIN" (valeur de l'enum NestJS)
+        // Le backend peut renvoyer "ROLE_ADMIN" ou "admin"
         isAdmin: (state) => state.role === "ROLE_ADMIN",
     },
 
@@ -24,11 +31,11 @@ export const useAuthStore = defineStore("auth", {
             try {
                 const data = await signin(payload);
                 this.token    = data.access_token;
-                this.role     = data.role;       // ex: "ROLE_ADMIN" ou "ROLE_USER"
+                this.role     = normalizeRole(data.role);
                 this.username = data.username;   // toujours présent grâce au ...safeUser
 
                 localStorage.setItem("token",    data.access_token);
-                localStorage.setItem("role",     data.role);
+                localStorage.setItem("role",     this.role ?? "");
                 localStorage.setItem("username", data.username);
                 localStorage.setItem("toast", "Welcome back! Login successful ✦");
                 return data;
@@ -53,6 +60,8 @@ export const useAuthStore = defineStore("auth", {
             }
         },
 
+        
+
         logout() {
             this.token    = null;
             this.role     = null;
@@ -60,6 +69,6 @@ export const useAuthStore = defineStore("auth", {
             localStorage.removeItem("token");
             localStorage.removeItem("role");
             localStorage.removeItem("username");
-        },
-    },
+                }
+        }
 });

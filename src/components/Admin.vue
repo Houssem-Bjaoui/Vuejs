@@ -51,6 +51,7 @@ function authorLabel(author) {
 const normalizedBooks = computed(() =>
     books.value.map(book => ({
       ...book,
+      id: book.id ?? book._id,
       authorLabel: authorLabel(book.author),
       category: book.category ?? '—',
       editor: book.editor ?? '—',
@@ -201,7 +202,12 @@ async function saveBook() {
 
 async function deleteBook() {
   try {
-    await booksStore.removeBookById(modal.data.id)
+    const id = modal.data?.id ?? modal.data?._id
+    if (!id) {
+      showToast('Delete book failed: missing book id.')
+      return
+    }
+    await booksStore.removeBookById(id)
     showToast('Book deleted successfully.')
     closeModal()
   } catch (err) {
